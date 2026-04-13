@@ -4,8 +4,6 @@ A local Django prototype for granting or denying site access based on a linked X
 
 ## Flow diagram
 
-Mermaid source: [docs/user-flow.mmd](docs/user-flow.mmd)
-
 ```mermaid
 flowchart TD
     visitor[Visitor] --> entry{Has account?}
@@ -37,8 +35,20 @@ flowchart TD
     checkNeeded -->|No| creatorLookup[Creator-authenticated X user lookup]
 
     creatorLookup --> xApi["GET /2/users/:id?user.fields=subscription"]
-    xApi --> parseTier[Parse subscription_type]
-    parseTier --> cacheStatus[Cache tier and subscriber flag]
+    xApi --> parseSubscription[Parse subscription object]
+    parseSubscription --> subscribes{subscription.subscribes_to_you present?}
+    subscribes -->|true| creatorSub[Mark subscriber]
+    subscribes -->|false| creatorNoSub[Mark not subscribed]
+    subscribes -->|missing| tierFallback[Fallback to subscription_type for mock or legacy data]
+    creatorSub --> tierKnown{subscription_type has app tier?}
+    tierKnown -->|Yes| cacheTier[Cache explicit tier]
+    tierKnown -->|No| cacheBasic[Cache Basic as conservative local tier]
+    creatorNoSub --> cacheNoSub[Cache no access]
+    tierFallback --> cacheFallback[Cache fallback tier if Basic/Premium/PremiumPlus]
+    cacheTier --> cacheStatus[Cache subscription state]
+    cacheBasic --> cacheStatus
+    cacheNoSub --> cacheStatus
+    cacheFallback --> cacheStatus
     cacheStatus --> accessDecision{Tier grants access?}
     cachedStatus --> accessDecision
 
@@ -72,6 +82,8 @@ Mock X checks are enabled by default with `X_SUBSCRIPTION_MOCK=true`. Use these 
 - `mock-unsubscribed` revokes access on the next check.
 
 For real X lookups, set `X_SUBSCRIPTION_MOCK=false` and add the creator account bearer token in Django admin under `Creator X credentials`. The backend calls `GET https://api.x.com/2/users/:id?user.fields=subscription`; user tokens are not stored.
+
+The X `subscription` object appears under-documented. The app treats `subscription.subscribes_to_you` as the primary real creator-subscription signal. If X returns `subscribes_to_you=true` without a tier, the app grants the conservative local `Basic` tier. `subscription_type` is kept as a fallback for mock or legacy data and explicit Basic/Premium/PremiumPlus tier values.
 
 ```sh
 X_SUBSCRIPTION_MOCK=false uv run backend/manage.py runserver

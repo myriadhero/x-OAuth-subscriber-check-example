@@ -12,6 +12,8 @@
       X Subscriber: {% if profile.is_x_subscriber %}Yes{% else %}No{% endif %}
     </span>
   </p>
+  <p><strong>Subscribes to you:</strong> {{ profile.x_subscription_status.subscribes_to_you|yesno:"Yes,No,Unknown" }}</p>
+  <p><strong>Tier:</strong> {{ profile.x_subscription_status.access_tier|default:"None" }}</p>
   <p class="muted">Last checked: {{ profile.x_subscription_last_checked|default:"Not checked yet" }}</p>
 
   <div class="actions">

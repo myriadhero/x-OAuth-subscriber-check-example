@@ -17,6 +17,7 @@ from .services import (
     _cache_is_fresh,
     _fetch_real_x_subscription,
     get_active_creator_bearer_token,
+    parse_subscription_state,
     parse_subscription_type,
     refresh_profile_subscription,
 )
@@ -244,6 +245,7 @@ class SubscriptionAccessTests(TestCase):
         log_info.assert_called_once()
         self.assertEqual(log_info.call_args.args[1], 'mock-premium')
         self.assertIn('Subscription type: Premium', out.getvalue())
+        self.assertIn('Access tier: Premium', out.getvalue())
 
     @override_settings(X_SUBSCRIPTION_MOCK=False)
     def test_force_subscription_lookup_command_reports_lookup_errors(self):
@@ -313,6 +315,46 @@ class CreatorXCredentialTests(TestCase):
             ):
                 _fetch_real_x_subscription('123')
 
+    def test_subscription_state_uses_subscribes_to_you_as_primary_signal(self):
+        state = parse_subscription_state({
+            'data': {
+                'id': '12468',
+                'name': 'Kido Dreauw',
+                'username': 'MyriadHero',
+                'subscription': {'subscribes_to_you': True},
+            }
+        })
+
+        self.assertTrue(state['is_subscriber'])
+        self.assertTrue(state['subscribes_to_you'])
+        self.assertIsNone(state['subscription_type'])
+        self.assertEqual(state['access_tier'], 'Basic')
+
+    def test_subscription_state_respects_false_subscribes_to_you(self):
+        state = parse_subscription_state({
+            'data': {
+                'subscription': {
+                    'subscribes_to_you': False,
+                    'subscription_type': 'Premium',
+                }
+            }
+        })
+
+        self.assertFalse(state['is_subscriber'])
+        self.assertFalse(state['subscribes_to_you'])
+        self.assertEqual(state['subscription_type'], 'Premium')
+        self.assertIsNone(state['access_tier'])
+
+    def test_subscription_state_falls_back_to_subscription_type_for_mock_data(self):
+        state = parse_subscription_state({
+            'data': {'subscription': {'subscription_type': 'PremiumPlus'}}
+        })
+
+        self.assertTrue(state['is_subscriber'])
+        self.assertIsNone(state['subscribes_to_you'])
+        self.assertEqual(state['subscription_type'], 'PremiumPlus')
+        self.assertEqual(state['access_tier'], 'PremiumPlus')
+
     @override_settings(X_SUBSCRIPTION_MOCK=False)
     def test_subscription_error_marks_profile_dirty_and_keeps_cached_status(self):
         user = User.objects.create_user(
@@ -334,6 +376,7 @@ class CreatorXCredentialTests(TestCase):
         self.assertFalse(_cache_is_fresh(profile))
         self.assertTrue(profile.is_x_subscriber)
         self.assertEqual(profile.x_subscription_status['subscription_type'], 'Premium')
+        self.assertEqual(profile.x_subscription_status.get('access_tier'), None)
 
     def test_dirty_subscription_state_retries_next_refresh_and_clears_on_success(self):
         user = User.objects.create_user(
@@ -360,6 +403,7 @@ class CreatorXCredentialTests(TestCase):
         self.assertEqual(profile.x_subscription_last_error, '')
         self.assertTrue(profile.is_x_subscriber)
         self.assertEqual(profile.x_subscription_status['subscription_type'], 'Basic')
+        self.assertEqual(profile.x_subscription_status['access_tier'], 'Basic')
 
     @override_settings(X_SUBSCRIPTION_MOCK=False)
     def test_members_only_shows_subscription_lookup_error_notice(self):

@@ -69,5 +69,5 @@ def user_can_access_post(user, post, profile=None):
     if not user.is_authenticated or not profile or not profile.is_x_subscriber:
         return False
 
-    subscription_type = profile.x_subscription_status.get('subscription_type')
-    return TIER_RANK.get(subscription_type, 0) >= TIER_RANK[post.access_tier]
+    access_tier = profile.x_subscription_status.get('access_tier')
+    return TIER_RANK.get(access_tier, 0) >= TIER_RANK[post.access_tier]

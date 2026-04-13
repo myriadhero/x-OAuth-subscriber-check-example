@@ -9,6 +9,7 @@
   <h2>Current status</h2>
   <p><strong>X connected:</strong> {% if profile.x_user_id %}Yes{% else %}No{% endif %}</p>
   <p><strong>X subscriber:</strong> {% if profile.is_x_subscriber %}Yes{% else %}No{% endif %}</p>
-  <p><strong>Tier:</strong> {{ profile.x_subscription_status.subscription_type|default:"None" }}</p>
+  <p><strong>Subscribes to you:</strong> {{ profile.x_subscription_status.subscribes_to_you|yesno:"Yes,No,Unknown" }}</p>
+  <p><strong>Tier:</strong> {{ profile.x_subscription_status.access_tier|default:"None" }}</p>
   <p class="muted">X user ID: {{ profile.x_user_id|default:"Not connected" }}</p>
 {% endblock %}

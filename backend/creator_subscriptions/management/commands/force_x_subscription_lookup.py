@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from creator_subscriptions.services import (
     XSubscriptionError,
     fetch_x_subscription,
-    parse_subscription_type,
+    parse_subscription_state,
 )
 
 
@@ -23,7 +23,10 @@ class Command(BaseCommand):
         except XSubscriptionError as exc:
             raise CommandError(str(exc)) from exc
 
-        subscription_type = parse_subscription_type(payload) or 'None'
+        state = parse_subscription_state(payload)
+        access_tier = state['access_tier'] or 'None'
         self.stdout.write(self.style.SUCCESS(f'Lookup complete for X user {x_user_id}.'))
-        self.stdout.write(f'Subscription type: {subscription_type}')
+        self.stdout.write(f'Subscribes to you: {state["subscribes_to_you"]}')
+        self.stdout.write(f'Subscription type: {state["subscription_type"] or "None"}')
+        self.stdout.write(f'Access tier: {access_tier}')
         self.stdout.write(json.dumps(payload, indent=2, sort_keys=True))

@@ -73,10 +73,12 @@ def refresh_profile_subscription(profile, force=False):
         )
         return profile
 
-    subscription_type = parse_subscription_type(payload)
-    profile.is_x_subscriber = subscription_type in ACTIVE_SUBSCRIPTION_TYPES
+    subscription_state = parse_subscription_state(payload)
+    profile.is_x_subscriber = subscription_state['is_subscriber']
     profile.x_subscription_status = {
-        'subscription_type': subscription_type,
+        'subscribes_to_you': subscription_state['subscribes_to_you'],
+        'subscription_type': subscription_state['subscription_type'],
+        'access_tier': subscription_state['access_tier'],
         'raw': payload,
     }
     profile.x_subscription_last_checked = timezone.now()
@@ -104,12 +106,45 @@ def fetch_x_subscription(x_user_id):
 
 
 def parse_subscription_type(payload):
+    return parse_subscription_state(payload)['subscription_type']
+
+
+def parse_subscription_state(payload):
     data = payload.get('data', payload)
     subscription = data.get('subscription') if isinstance(data, dict) else None
+    subscribes_to_you = None
+    subscription_type = None
+
     if isinstance(subscription, dict):
-        return subscription.get('subscription_type')
-    if isinstance(subscription, str):
-        return subscription
+        subscribes_to_you = subscription.get('subscribes_to_you')
+        subscription_type = subscription.get('subscription_type')
+    elif isinstance(subscription, str):
+        subscription_type = subscription
+
+    if subscribes_to_you is not None:
+        is_subscriber = bool(subscribes_to_you)
+        access_tier = (
+            _access_tier_for_subscription(subscription_type, is_subscriber)
+            if is_subscriber
+            else None
+        )
+    else:
+        access_tier = _access_tier_for_subscription(subscription_type, False)
+        is_subscriber = access_tier in ACTIVE_SUBSCRIPTION_TYPES
+
+    return {
+        'is_subscriber': is_subscriber,
+        'subscribes_to_you': subscribes_to_you,
+        'subscription_type': subscription_type,
+        'access_tier': access_tier,
+    }
+
+
+def _access_tier_for_subscription(subscription_type, is_creator_subscriber):
+    if subscription_type in ACTIVE_SUBSCRIPTION_TYPES:
+        return subscription_type
+    if is_creator_subscriber:
+        return 'Basic'
     return None
 
 
