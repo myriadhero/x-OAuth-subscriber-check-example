@@ -29,6 +29,26 @@ For real X lookups, set `X_SUBSCRIPTION_MOCK=false` and add the creator account 
 X_SUBSCRIPTION_MOCK=false uv run backend/manage.py runserver
 ```
 
+To log a sample X user lookup and response during local debugging, enable:
+
+```sh
+X_SUBSCRIPTION_LOG_SAMPLE_RESPONSE=true uv run backend/manage.py runserver
+```
+
+This only logs while Django `DEBUG=True`, and it does not log the creator bearer token.
+
+To force a lookup without waiting for the profile cache to expire, run:
+
+```sh
+X_SUBSCRIPTION_LOG_SAMPLE_RESPONSE=true uv run backend/manage.py force_x_subscription_lookup YOUR_X_USER_ID
+```
+
+To also write subscription logs to a file, set an existing writable path:
+
+```sh
+X_SUBSCRIPTION_LOG_SAMPLE_RESPONSE=true X_SUBSCRIPTION_LOG_FILE=/tmp/x-subscription.log uv run backend/manage.py force_x_subscription_lookup YOUR_X_USER_ID
+```
+
 ## Manual testing
 
 1. Apply migrations and create an admin user:

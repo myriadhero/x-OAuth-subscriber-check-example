@@ -148,7 +148,7 @@ SOCIALACCOUNT_PROVIDERS = {
     },
 }
 
-X_SUBSCRIPTION_MOCK = os.environ.get("X_SUBSCRIPTION_MOCK", "false").lower() in {
+X_SUBSCRIPTION_MOCK = os.environ.get("X_SUBSCRIPTION_MOCK", "true").lower() in {
     "1",
     "true",
     "yes",
@@ -158,5 +158,42 @@ X_SUBSCRIPTION_MOCK_TYPE = os.environ.get("X_SUBSCRIPTION_MOCK_TYPE", "Premium")
 X_SUBSCRIPTION_CACHE_SECONDS = int(
     os.environ.get("X_SUBSCRIPTION_CACHE_SECONDS", "900")
 )
+X_SUBSCRIPTION_LOG_SAMPLE_RESPONSE = os.environ.get(
+    "X_SUBSCRIPTION_LOG_SAMPLE_RESPONSE", "false"
+).lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+X_SUBSCRIPTION_LOG_FILE = os.environ.get("X_SUBSCRIPTION_LOG_FILE", "")
 X_API_TIMEOUT_SECONDS = float(os.environ.get("X_API_TIMEOUT_SECONDS", "5"))
 TEST_RUNNER = "XSite.test_runner.ProjectTestRunner"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
+        },
+    },
+    "loggers": {
+        "creator_subscriptions": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
+if DEBUG and X_SUBSCRIPTION_LOG_FILE:
+    LOGGING["handlers"]["x_subscription_file"] = {
+        "class": "logging.FileHandler",
+        "level": "INFO",
+        "filename": X_SUBSCRIPTION_LOG_FILE,
+    }
+    LOGGING["loggers"]["creator_subscriptions"]["handlers"].append(
+        "x_subscription_file"
+    )

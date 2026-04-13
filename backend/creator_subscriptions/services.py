@@ -98,8 +98,11 @@ def refresh_profile_subscription(profile, force=False):
 
 def fetch_x_subscription(x_user_id):
     if settings.X_SUBSCRIPTION_MOCK:
-        return _fetch_mock_x_subscription(x_user_id)
-    return _fetch_real_x_subscription(x_user_id)
+        payload = _fetch_mock_x_subscription(x_user_id)
+    else:
+        payload = _fetch_real_x_subscription(x_user_id)
+    _log_subscription_lookup_sample(x_user_id, payload)
+    return payload
 
 
 def parse_subscription_type(payload):
@@ -158,6 +161,17 @@ def get_active_creator_bearer_token():
     if not credential:
         return ''
     return credential.bearer_token.strip()
+
+
+def _log_subscription_lookup_sample(x_user_id, payload):
+    if not settings.DEBUG or not settings.X_SUBSCRIPTION_LOG_SAMPLE_RESPONSE:
+        return
+
+    logger.info(
+        'X subscription lookup sample: x_user_id=%s response=%s',
+        x_user_id,
+        json.dumps(payload, sort_keys=True, default=str),
+    )
 
 
 def _cache_is_fresh(profile):

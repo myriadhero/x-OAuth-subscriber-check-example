@@ -1,9 +1,12 @@
 from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from allauth.socialaccount.models import SocialApp
+from io import StringIO
 from unittest.mock import patch
 
 from .models import CreatorXCredential, Profile
@@ -195,6 +198,54 @@ class SubscriptionAccessTests(TestCase):
         user.profile.refresh_from_db()
         self.assertEqual(user.profile.x_user_id, 'mock-plus')
         self.assertTrue(user.profile.is_x_subscriber)
+
+    @override_settings(DEBUG=True, X_SUBSCRIPTION_LOG_SAMPLE_RESPONSE=True)
+    def test_subscription_sample_logging_can_be_enabled_in_debug(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        user.profile.x_user_id = 'mock-premium'
+        user.profile.save()
+
+        with patch('creator_subscriptions.services.logger.info') as log_info:
+            refresh_profile_subscription(user.profile, force=True)
+
+        log_info.assert_called_once()
+        self.assertIn('X subscription lookup sample', log_info.call_args.args[0])
+        self.assertEqual(log_info.call_args.args[1], 'mock-premium')
+
+    @override_settings(DEBUG=False, X_SUBSCRIPTION_LOG_SAMPLE_RESPONSE=True)
+    def test_subscription_sample_logging_requires_debug(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        user.profile.x_user_id = 'mock-premium'
+        user.profile.save()
+
+        with patch('creator_subscriptions.services.logger.info') as log_info:
+            refresh_profile_subscription(user.profile, force=True)
+
+        log_info.assert_not_called()
+
+    @override_settings(DEBUG=True, X_SUBSCRIPTION_LOG_SAMPLE_RESPONSE=True)
+    def test_force_subscription_lookup_command_triggers_sample_logging(self):
+        out = StringIO()
+
+        with patch('creator_subscriptions.services.logger.info') as log_info:
+            call_command('force_x_subscription_lookup', 'mock-premium', stdout=out)
+
+        log_info.assert_called_once()
+        self.assertEqual(log_info.call_args.args[1], 'mock-premium')
+        self.assertIn('Subscription type: Premium', out.getvalue())
+
+    @override_settings(X_SUBSCRIPTION_MOCK=False)
+    def test_force_subscription_lookup_command_reports_lookup_errors(self):
+        with self.assertRaises(CommandError):
+            call_command('force_x_subscription_lookup', '123', stdout=StringIO())
 
 
 class CreatorXCredentialTests(TestCase):
