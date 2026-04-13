@@ -2,6 +2,54 @@
 
 A local Django prototype for granting or denying site access based on a linked X user ID and cached subscription status.
 
+## Flow diagram
+
+Mermaid source: [docs/user-flow.mmd](docs/user-flow.mmd)
+
+```mermaid
+flowchart TD
+    visitor[Visitor] --> entry{Has account?}
+    entry -->|No| register[Register with email]
+    entry -->|No| xSignup[Mock or real sign in with X]
+    entry -->|Yes| login[Log in with email]
+
+    register --> profile[Profile]
+    login --> profile
+    xSignup --> linkMatch{Confirmed email matches existing user?}
+    linkMatch -->|Yes| linkExisting[Link X ID to existing user]
+    linkMatch -->|No| createXUser[Create local X-backed user]
+    linkExisting --> profile
+    createXUser --> profile
+
+    profile --> connectChoice{X connected?}
+    connectChoice -->|No| connectX[Connect X account]
+    connectChoice -->|Yes| gated[Members and blog pages]
+
+    connectX --> oauthStart[Allauth X OAuth connect]
+    oauthStart --> xAuthorize[X OAuth authorization]
+    xAuthorize --> callback[OAuth callback]
+    callback --> storeXId[Store only X user ID]
+    storeXId --> forcedCheck[Force subscription check]
+    forcedCheck --> profile
+
+    gated --> checkNeeded{Cache fresh and not dirty?}
+    checkNeeded -->|Yes| cachedStatus[Use cached subscription status]
+    checkNeeded -->|No| creatorLookup[Creator-authenticated X user lookup]
+
+    creatorLookup --> xApi["GET /2/users/:id?user.fields=subscription"]
+    xApi --> parseTier[Parse subscription_type]
+    parseTier --> cacheStatus[Cache tier and subscriber flag]
+    cacheStatus --> accessDecision{Tier grants access?}
+    cachedStatus --> accessDecision
+
+    accessDecision -->|Yes| allow[Show members/blog content]
+    accessDecision -->|No| deny[Show access-needed page with current status]
+
+    xApi -->|Error, e.g. 402 or timeout| lookupError[Keep previous cached status]
+    lookupError --> dirty[Mark profile dirty and show verification warning]
+    dirty --> retryNext[Retry on next profile/members/blog operation]
+```
+
 ## Run locally
 
 ```sh
