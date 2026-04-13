@@ -1,10 +1,8 @@
 import json
 import logging
-import urllib.error
-import urllib.parse
-import urllib.request
 from datetime import timedelta
 
+import requests
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -139,20 +137,18 @@ def _fetch_real_x_subscription(x_user_id):
     if not token:
         raise XSubscriptionError('No active creator X credential is configured in admin.')
 
-    encoded_id = urllib.parse.quote(str(x_user_id), safe='')
-    url = f'https://api.x.com/2/users/{encoded_id}?user.fields=subscription'
-    request = urllib.request.Request(
-        url,
-        headers={'Authorization': f'Bearer {token}'},
-    )
+    url = f'https://api.x.com/2/users/{x_user_id}'
 
     try:
-        with urllib.request.urlopen(  # nosec B310
-            request,
+        response = requests.get(
+            url,
+            params={'user.fields': 'subscription'},
+            headers={'Authorization': f'Bearer {token}'},
             timeout=settings.X_API_TIMEOUT_SECONDS,
-        ) as response:
-            return json.loads(response.read().decode('utf-8'))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        )
+        response.raise_for_status()
+        return response.json()
+    except (requests.RequestException, ValueError) as exc:
         raise XSubscriptionError('X subscription lookup failed.') from exc
 
 

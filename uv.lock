@@ -271,10 +271,12 @@ source = { virtual = "." }
 dependencies = [
     { name = "django" },
     { name = "django-allauth", extra = ["socialaccount"] },
+    { name = "requests" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "django", specifier = ">=6.0.4" },
-    { name = "django-allauth", extras = ["socialaccount", "twitter", "x"], specifier = ">=65.15.1" },
+    { name = "django-allauth", extras = ["socialaccount"], specifier = ">=65.15.1" },
+    { name = "requests", specifier = ">=2.33.1" },
 ]

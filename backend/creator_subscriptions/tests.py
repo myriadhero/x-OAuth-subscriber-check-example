@@ -7,7 +7,9 @@ from django.urls import reverse
 from django.utils import timezone
 from allauth.socialaccount.models import SocialApp
 from io import StringIO
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+
+import requests
 
 from .models import CreatorXCredential, Profile
 from .services import (
@@ -15,6 +17,7 @@ from .services import (
     _cache_is_fresh,
     _fetch_real_x_subscription,
     get_active_creator_bearer_token,
+    parse_subscription_type,
     refresh_profile_subscription,
 )
 
@@ -265,6 +268,50 @@ class CreatorXCredentialTests(TestCase):
             'No active creator X credential is configured in admin.',
         ):
             _fetch_real_x_subscription('123')
+
+    @override_settings(X_SUBSCRIPTION_MOCK=False, X_API_TIMEOUT_SECONDS=2)
+    def test_real_subscription_lookup_uses_requests(self):
+        CreatorXCredential.objects.create(
+            name='Creator account',
+            bearer_token='token-from-admin',
+            is_active=True,
+        )
+        response = Mock()
+        response.json.return_value = {
+            'data': {'subscription': {'subscription_type': 'Premium'}}
+        }
+
+        with patch(
+            'creator_subscriptions.services.requests.get',
+            return_value=response,
+        ) as get:
+            payload = _fetch_real_x_subscription('123')
+
+        get.assert_called_once_with(
+            'https://api.x.com/2/users/123',
+            params={'user.fields': 'subscription'},
+            headers={'Authorization': 'Bearer token-from-admin'},
+            timeout=2,
+        )
+        response.raise_for_status.assert_called_once()
+        self.assertEqual(parse_subscription_type(payload), 'Premium')
+
+    def test_real_subscription_lookup_wraps_requests_errors(self):
+        CreatorXCredential.objects.create(
+            name='Creator account',
+            bearer_token='token-from-admin',
+            is_active=True,
+        )
+
+        with patch(
+            'creator_subscriptions.services.requests.get',
+            side_effect=requests.RequestException('payment required'),
+        ):
+            with self.assertRaisesMessage(
+                XSubscriptionError,
+                'X subscription lookup failed.',
+            ):
+                _fetch_real_x_subscription('123')
 
     @override_settings(X_SUBSCRIPTION_MOCK=False)
     def test_subscription_error_marks_profile_dirty_and_keeps_cached_status(self):
