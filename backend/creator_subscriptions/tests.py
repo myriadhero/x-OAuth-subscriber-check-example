@@ -2,10 +2,18 @@ from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from allauth.socialaccount.models import SocialApp
+from unittest.mock import patch
 
 from .models import CreatorXCredential, Profile
-from .services import XSubscriptionError, _fetch_real_x_subscription, get_active_creator_bearer_token
+from .services import (
+    XSubscriptionError,
+    _cache_is_fresh,
+    _fetch_real_x_subscription,
+    get_active_creator_bearer_token,
+    refresh_profile_subscription,
+)
 
 
 User = get_user_model()
@@ -206,3 +214,71 @@ class CreatorXCredentialTests(TestCase):
             'No active creator X credential is configured in admin.',
         ):
             _fetch_real_x_subscription('123')
+
+    @override_settings(X_SUBSCRIPTION_MOCK=False)
+    def test_subscription_error_marks_profile_dirty_and_keeps_cached_status(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        profile = user.profile
+        profile.x_user_id = '123'
+        profile.is_x_subscriber = True
+        profile.x_subscription_status = {'subscription_type': 'Premium'}
+        profile.x_subscription_last_checked = timezone.now()
+        profile.save()
+
+        refresh_profile_subscription(profile, force=True)
+
+        profile.refresh_from_db()
+        self.assertTrue(profile.x_subscription_check_failed)
+        self.assertFalse(_cache_is_fresh(profile))
+        self.assertTrue(profile.is_x_subscriber)
+        self.assertEqual(profile.x_subscription_status['subscription_type'], 'Premium')
+
+    def test_dirty_subscription_state_retries_next_refresh_and_clears_on_success(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        profile = user.profile
+        profile.x_user_id = '123'
+        profile.x_subscription_check_failed = True
+        profile.x_subscription_last_error = 'Subscription status could not be verified.'
+        profile.x_subscription_last_checked = timezone.now()
+        profile.save()
+
+        with patch(
+            'creator_subscriptions.services.fetch_x_subscription',
+            return_value={'data': {'subscription': {'subscription_type': 'Basic'}}},
+        ) as fetch_subscription:
+            refresh_profile_subscription(profile)
+
+        profile.refresh_from_db()
+        fetch_subscription.assert_called_once_with('123')
+        self.assertFalse(profile.x_subscription_check_failed)
+        self.assertEqual(profile.x_subscription_last_error, '')
+        self.assertTrue(profile.is_x_subscriber)
+        self.assertEqual(profile.x_subscription_status['subscription_type'], 'Basic')
+
+    @override_settings(X_SUBSCRIPTION_MOCK=False)
+    def test_members_only_shows_subscription_lookup_error_notice(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        user.profile.x_user_id = '123'
+        user.profile.save()
+        self.client.login(username='reader', password='secret12345')
+
+        response = self.client.get(reverse('creator_subscriptions:members_only'))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(
+            response,
+            'Subscription status could not be verified.',
+            status_code=403,
+        )

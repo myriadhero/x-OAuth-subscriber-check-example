@@ -4,6 +4,7 @@
 
 {% block content %}
   <h1>Blog.</h1>
+  {% include "creator_subscriptions/subscription_check_notice.html" %}
   {% if posts %}
     <section>
       <h2>You can access</h2>

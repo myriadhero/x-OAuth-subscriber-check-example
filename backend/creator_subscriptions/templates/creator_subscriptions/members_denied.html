@@ -4,6 +4,7 @@
 
 {% block content %}
   <h1>Members access needed.</h1>
+  {% include "creator_subscriptions/subscription_check_notice.html" %}
   <p>This account is not linked to an active X subscriber.</p>
   <h2>Current status</h2>
   <p><strong>X connected:</strong> {% if profile.x_user_id %}Yes{% else %}No{% endif %}</p>

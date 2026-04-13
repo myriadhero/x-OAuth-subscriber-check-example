@@ -11,6 +11,8 @@ class Profile(models.Model):
     x_user_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
     x_subscription_status = models.JSONField(default=dict, blank=True)
     x_subscription_last_checked = models.DateTimeField(null=True, blank=True)
+    x_subscription_check_failed = models.BooleanField(default=False)
+    x_subscription_last_error = models.CharField(max_length=255, blank=True)
     is_x_subscriber = models.BooleanField(default=False)
 
     def __str__(self):

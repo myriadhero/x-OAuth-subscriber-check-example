@@ -1,0 +1,5 @@
+{% if profile and profile.x_subscription_check_failed %}
+  <p class="notice">
+    {{ profile.x_subscription_last_error|default:"Subscription status could not be verified. Please try again later or contact an admin." }}
+  </p>
+{% endif %}

@@ -8,10 +8,11 @@ class ProfileAdmin(admin.ModelAdmin):
         'user',
         'x_user_id',
         'is_x_subscriber',
+        'x_subscription_check_failed',
         'x_subscription_last_checked',
     )
     search_fields = ('user__username', 'user__email', 'x_user_id')
-    list_filter = ('is_x_subscriber',)
+    list_filter = ('is_x_subscriber', 'x_subscription_check_failed')
     readonly_fields = ('x_subscription_last_checked',)
 
 

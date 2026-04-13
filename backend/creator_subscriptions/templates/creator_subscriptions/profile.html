@@ -4,6 +4,7 @@
 
 {% block content %}
   <h1>Your access.</h1>
+  {% include "creator_subscriptions/subscription_check_notice.html" %}
   <p><strong>Email:</strong> {{ user.email|default:"Not set" }}</p>
   <p><strong>X user ID:</strong> {{ profile.x_user_id|default:"Not connected" }}</p>
   <p>

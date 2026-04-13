@@ -4,6 +4,7 @@
 
 {% block content %}
   <h1>Access needed.</h1>
+  {% include "creator_subscriptions/subscription_check_notice.html" %}
   <p>This post requires {{ post.get_access_tier_display }} access.</p>
   <div class="actions">
     {% if user.is_authenticated %}

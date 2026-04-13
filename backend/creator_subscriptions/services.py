@@ -15,6 +15,9 @@ from .models import CreatorXCredential, Profile
 logger = logging.getLogger(__name__)
 
 ACTIVE_SUBSCRIPTION_TYPES = {'Basic', 'Premium', 'PremiumPlus'}
+SUBSCRIPTION_CHECK_FAILED_MESSAGE = (
+    'Subscription status could not be verified. Please try again later or contact an admin.'
+)
 MOCK_SUBSCRIPTION_TYPES = {
     'mock-basic': 'Basic',
     'mock-premium': 'Premium',
@@ -42,11 +45,15 @@ def refresh_profile_subscription(profile, force=False):
         profile.is_x_subscriber = False
         profile.x_subscription_status = {}
         profile.x_subscription_last_checked = timezone.now()
+        profile.x_subscription_check_failed = False
+        profile.x_subscription_last_error = ''
         profile.save(
             update_fields=[
                 'is_x_subscriber',
                 'x_subscription_status',
                 'x_subscription_last_checked',
+                'x_subscription_check_failed',
+                'x_subscription_last_error',
             ]
         )
         return profile
@@ -57,7 +64,15 @@ def refresh_profile_subscription(profile, force=False):
     try:
         payload = fetch_x_subscription(profile.x_user_id)
     except XSubscriptionError:
-        logger.warning('X subscription lookup failed; using cached status.', exc_info=True)
+        logger.warning('X subscription lookup failed; using cached status.')
+        profile.x_subscription_check_failed = True
+        profile.x_subscription_last_error = SUBSCRIPTION_CHECK_FAILED_MESSAGE
+        profile.save(
+            update_fields=[
+                'x_subscription_check_failed',
+                'x_subscription_last_error',
+            ]
+        )
         return profile
 
     subscription_type = parse_subscription_type(payload)
@@ -67,11 +82,15 @@ def refresh_profile_subscription(profile, force=False):
         'raw': payload,
     }
     profile.x_subscription_last_checked = timezone.now()
+    profile.x_subscription_check_failed = False
+    profile.x_subscription_last_error = ''
     profile.save(
         update_fields=[
             'is_x_subscriber',
             'x_subscription_status',
             'x_subscription_last_checked',
+            'x_subscription_check_failed',
+            'x_subscription_last_error',
         ]
     )
     return profile
@@ -142,6 +161,9 @@ def get_active_creator_bearer_token():
 
 
 def _cache_is_fresh(profile):
+    if profile.x_subscription_check_failed:
+        return False
+
     if not profile.x_subscription_last_checked:
         return False
 

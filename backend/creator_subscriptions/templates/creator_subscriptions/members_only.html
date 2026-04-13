@@ -4,6 +4,7 @@
 
 {% block content %}
   <h1>Members only.</h1>
+  {% include "creator_subscriptions/subscription_check_notice.html" %}
   <p>Your X subscription is active, so this page is available.</p>
   <h2>Current status</h2>
   <p><strong>X connected:</strong> {% if profile.x_user_id %}Yes{% else %}No{% endif %}</p>

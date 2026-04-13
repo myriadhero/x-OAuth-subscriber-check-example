@@ -4,6 +4,7 @@
 
 {% block content %}
   <h1>{{ post.title }}</h1>
+  {% include "creator_subscriptions/subscription_check_notice.html" %}
   <p class="muted">Access tier: {{ post.get_access_tier_display }}</p>
   {{ post.body|linebreaks }}
 {% endblock %}
