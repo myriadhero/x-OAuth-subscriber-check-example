@@ -1,0 +1,21 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Creator Access{% endblock %}
+
+{% block content %}
+  <h1>Subscriber access, checked automatically.</h1>
+  <p>Email users can keep their account and connect X when they are ready. X-linked users are checked through the backend before member pages are served.</p>
+
+  <div class="actions">
+    {% if user.is_authenticated %}
+      <a class="button" href="{% url 'creator_subscriptions:profile' %}">Open profile</a>
+      <a class="button secondary" href="{% url 'creator_subscriptions:members_only' %}">Try members page</a>
+    {% else %}
+      <a class="button" href="{% url 'creator_subscriptions:register' %}">Register with email</a>
+      <a class="button secondary" href="{% url 'creator_subscriptions:mock_x_sign_in' %}">Mock sign in with X</a>
+      <a class="button secondary" href="{% url 'account_login' %}">Log in</a>
+    {% endif %}
+  </div>
+
+  <p class="notice">Development mode uses mock X responses by default. Try <code>mock-premium</code> or <code>mock-unsubscribed</code> as the X user ID.</p>
+{% endblock %}

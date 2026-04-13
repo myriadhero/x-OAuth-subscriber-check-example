@@ -1,0 +1,13 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Login Cancelled{% endblock %}
+
+{% block content %}
+  <h1>Login cancelled.</h1>
+  <p>The third-party account flow was cancelled.</p>
+
+  <div class="actions">
+    <a class="button" href="{% url 'account_login' %}">Back to login</a>
+    <a class="button secondary" href="{% url 'creator_subscriptions:profile' %}">Open profile</a>
+  </div>
+{% endblock %}

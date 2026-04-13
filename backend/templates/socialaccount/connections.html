@@ -1,0 +1,42 @@
+{% extends "creator_subscriptions/base.html" %}
+{% load socialaccount %}
+
+{% block title %}Third-Party Accounts{% endblock %}
+
+{% block content %}
+  <h1>Third-party accounts.</h1>
+  <p>Connect X so this account can be checked for creator subscriber access.</p>
+
+  {% if form.accounts %}
+    <h2>Connected accounts</h2>
+    <form method="post" action="{% url 'socialaccount_connections' %}">
+      {% csrf_token %}
+      {% for acc in form.fields.account.choices %}
+        {% with account=acc.0.instance.get_provider_account %}
+          <p>
+            <input id="id_account_{{ account.account.pk }}" type="radio" name="account" value="{{ account.account.pk }}">
+            <label for="id_account_{{ account.account.pk }}">{{ account }} ({{ account.get_brand.name }})</label>
+          </p>
+        {% endwith %}
+      {% endfor %}
+      <button type="submit">Remove selected account</button>
+    </form>
+  {% else %}
+    <p>You currently have no third-party accounts connected to this account.</p>
+  {% endif %}
+
+  {% get_providers as socialaccount_providers %}
+  {% if socialaccount_providers %}
+    <h2>Add X Account</h2>
+    <div class="actions">
+      {% for provider in socialaccount_providers %}
+        {% provider_login_url provider process="connect" as href %}
+        <a class="button secondary" href="{{ href }}">Connect {{ provider.name }}</a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="actions">
+    <a class="button secondary" href="{% url 'creator_subscriptions:profile' %}">Back to profile</a>
+  </div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Mock X Sign In{% endblock %}
+
+{% block content %}
+  <h1>Mock sign in with X.</h1>
+  <p>Use a confirmed email to link an existing email account, or leave it blank to create an X-only local account.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Continue</button>
+  </form>
+
+  <div class="actions">
+    <a class="button secondary" href="{% url 'creator_subscriptions:register' %}">Register with email</a>
+    <a class="button secondary" href="{% url 'account_login' %}">Back to login</a>
+  </div>
+{% endblock %}

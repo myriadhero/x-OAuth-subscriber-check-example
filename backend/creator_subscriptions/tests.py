@@ -1,0 +1,208 @@
+from django.contrib.auth import get_user_model
+from django.contrib.sites.models import Site
+from django.test import TestCase, override_settings
+from django.urls import reverse
+from allauth.socialaccount.models import SocialApp
+
+from .models import CreatorXCredential, Profile
+from .services import XSubscriptionError, _fetch_real_x_subscription, get_active_creator_bearer_token
+
+
+User = get_user_model()
+
+
+@override_settings(X_SUBSCRIPTION_MOCK=True, X_SUBSCRIPTION_CACHE_SECONDS=0)
+class SubscriptionAccessTests(TestCase):
+    def test_profile_is_created_for_email_user(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+
+        self.assertTrue(Profile.objects.filter(user=user).exists())
+
+    def test_members_only_denies_unlinked_user(self):
+        User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        self.client.login(username='reader', password='secret12345')
+
+        response = self.client.get(reverse('creator_subscriptions:members_only'))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, 'X connected:', status_code=403)
+        self.assertContains(response, 'No', status_code=403)
+        self.assertContains(response, 'Tier:', status_code=403)
+
+    def test_allauth_login_uses_project_shell(self):
+        response = self.client.get(reverse('account_login'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Creator Subscriptions')
+        self.assertContains(response, 'Mock sign in with X')
+
+    def test_allauth_logout_uses_project_shell(self):
+        User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        self.client.login(username='reader', password='secret12345')
+
+        response = self.client.get(reverse('account_logout'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Creator Subscriptions')
+        self.assertContains(response, 'Stay signed in')
+
+    def test_allauth_connections_uses_project_shell(self):
+        User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        self.client.login(username='reader', password='secret12345')
+
+        response = self.client.get(reverse('socialaccount_connections'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Creator Subscriptions')
+        self.assertContains(response, 'Third-party accounts')
+        self.assertContains(response, 'Back to profile')
+
+    def test_x_oauth_connect_handoff_uses_project_shell(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        app = SocialApp.objects.create(
+            provider='twitter_oauth2',
+            name='X local',
+            client_id='client-id',
+            secret='client-secret',
+        )
+        app.sites.add(Site.objects.get_current())
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('twitter_oauth2_login'), {'process': 'connect'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Creator Subscriptions')
+        self.assertContains(response, 'Connect X')
+        self.assertContains(response, 'Back to third-party accounts')
+
+    def test_allauth_third_party_error_uses_project_shell(self):
+        response = self.client.get(reverse('socialaccount_login_error'))
+
+        self.assertEqual(response.status_code, 401)
+        self.assertContains(response, 'Creator Subscriptions', status_code=401)
+        self.assertContains(response, 'Third-party login failed', status_code=401)
+
+    def test_register_page_links_to_x_and_login(self):
+        response = self.client.get(reverse('creator_subscriptions:register'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Mock sign in with X')
+        self.assertContains(response, 'Back to login')
+
+    def test_mock_x_sign_in_page_links_to_email_register_and_login(self):
+        response = self.client.get(reverse('creator_subscriptions:mock_x_sign_in'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Register with email')
+        self.assertContains(response, 'Back to login')
+
+    def test_registered_email_user_can_log_in_with_email(self):
+        self.client.post(
+            reverse('creator_subscriptions:register'),
+            {
+                'username': 'reader',
+                'email': 'reader@example.com',
+                'password1': 'secret12345',
+                'password2': 'secret12345',
+            },
+        )
+        self.client.logout()
+
+        response = self.client.post(
+            reverse('account_login'),
+            {'login': 'reader@example.com', 'password': 'secret12345'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_members_only_allows_mock_subscriber(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        user.profile.x_user_id = 'mock-premium'
+        user.profile.save()
+        self.client.login(username='reader', password='secret12345')
+
+        response = self.client.get(reverse('creator_subscriptions:members_only'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'X connected:')
+        self.assertContains(response, 'X subscriber:')
+        self.assertContains(response, 'Premium')
+        user.profile.refresh_from_db()
+        self.assertTrue(user.profile.is_x_subscriber)
+
+    def test_members_only_revokes_mock_unsubscriber(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+        user.profile.x_user_id = 'mock-unsubscribed'
+        user.profile.is_x_subscriber = True
+        user.profile.save()
+        self.client.login(username='reader', password='secret12345')
+
+        response = self.client.get(reverse('creator_subscriptions:members_only'))
+
+        self.assertEqual(response.status_code, 403)
+        user.profile.refresh_from_db()
+        self.assertFalse(user.profile.is_x_subscriber)
+
+    def test_mock_x_sign_in_links_existing_email_user(self):
+        user = User.objects.create_user(
+            username='reader',
+            email='reader@example.com',
+            password='secret12345',
+        )
+
+        response = self.client.post(
+            reverse('creator_subscriptions:mock_x_sign_in'),
+            {'x_user_id': 'mock-plus', 'confirmed_email': 'reader@example.com'},
+        )
+
+        self.assertRedirects(response, reverse('creator_subscriptions:profile'))
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.x_user_id, 'mock-plus')
+        self.assertTrue(user.profile.is_x_subscriber)
+
+
+class CreatorXCredentialTests(TestCase):
+    def test_active_creator_bearer_token_comes_from_database(self):
+        CreatorXCredential.objects.create(
+            name='Creator account',
+            bearer_token=' token-from-admin ',
+            is_active=True,
+        )
+
+        self.assertEqual(get_active_creator_bearer_token(), 'token-from-admin')
+
+    @override_settings(X_SUBSCRIPTION_MOCK=False)
+    def test_real_subscription_lookup_requires_admin_credential(self):
+        with self.assertRaisesMessage(
+            XSubscriptionError,
+            'No active creator X credential is configured in admin.',
+        ):
+            _fetch_real_x_subscription('123')

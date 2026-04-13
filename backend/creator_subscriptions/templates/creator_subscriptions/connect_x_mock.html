@@ -1,0 +1,13 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Connect X{% endblock %}
+
+{% block content %}
+  <h1>Connect X.</h1>
+  <p>Use the mock IDs to exercise access changes locally.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Connect X account</button>
+  </form>
+{% endblock %}

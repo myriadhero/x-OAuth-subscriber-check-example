@@ -1,0 +1,29 @@
+{% extends "creator_subscriptions/base.html" %}
+{% load socialaccount %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+  <h1>Create an email account.</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Create account</button>
+  </form>
+
+  <div class="actions">
+    <a class="button secondary" href="{% url 'creator_subscriptions:mock_x_sign_in' %}">Mock sign in with X</a>
+    <a class="button secondary" href="{% url 'account_login' %}">Back to login</a>
+  </div>
+
+  {% get_providers as socialaccount_providers %}
+  {% if socialaccount_providers %}
+    <h2>Sign up with X</h2>
+    <div class="actions">
+      {% for provider in socialaccount_providers %}
+        {% provider_login_url provider process="login" as href %}
+        <a class="button secondary" href="{{ href }}">Continue with {{ provider.name }}</a>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

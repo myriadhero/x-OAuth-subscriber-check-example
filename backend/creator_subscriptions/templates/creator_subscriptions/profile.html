@@ -1,0 +1,21 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+  <h1>Your access.</h1>
+  <p><strong>Email:</strong> {{ user.email|default:"Not set" }}</p>
+  <p><strong>X user ID:</strong> {{ profile.x_user_id|default:"Not connected" }}</p>
+  <p>
+    <span class="status {% if profile.is_x_subscriber %}ok{% else %}no{% endif %}">
+      X Subscriber: {% if profile.is_x_subscriber %}Yes{% else %}No{% endif %}
+    </span>
+  </p>
+  <p class="muted">Last checked: {{ profile.x_subscription_last_checked|default:"Not checked yet" }}</p>
+
+  <div class="actions">
+    <a class="button" href="{% url 'creator_subscriptions:connect_x_mock' %}">Connect mock X account</a>
+    <a class="button secondary" href="{% url 'creator_subscriptions:members_only' %}">Open members page</a>
+    <a class="button secondary" href="{% url 'socialaccount_connections' %}">Manage real X OAuth</a>
+  </div>
+{% endblock %}

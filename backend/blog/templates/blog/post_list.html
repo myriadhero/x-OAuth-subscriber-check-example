@@ -1,0 +1,44 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Blog{% endblock %}
+
+{% block content %}
+  <h1>Blog.</h1>
+  {% if posts %}
+    <section>
+      <h2>You can access</h2>
+      {% if accessible_posts %}
+        {% for post in accessible_posts %}
+          <article>
+            <h3><a href="{% url 'blog:post_detail' post.slug %}">{{ post.title }}</a></h3>
+            <p class="muted">Access tier: {{ post.get_access_tier_display }}</p>
+            {% if post.excerpt %}
+              <p>{{ post.excerpt }}</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      {% else %}
+        <p>No posts are available to this account yet.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <h2>You cannot access</h2>
+      {% if locked_posts %}
+        {% for post in locked_posts %}
+          <article>
+            <h3><a href="{% url 'blog:post_detail' post.slug %}">{{ post.title }}</a></h3>
+            <p class="muted">Requires {{ post.get_access_tier_display }}</p>
+            {% if post.excerpt %}
+              <p>{{ post.excerpt }}</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      {% else %}
+        <p>All published posts are available to this account.</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <p>No posts yet. Add one in Django admin.</p>
+  {% endif %}
+{% endblock %}

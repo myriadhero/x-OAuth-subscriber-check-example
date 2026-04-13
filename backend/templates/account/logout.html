@@ -1,0 +1,15 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Log Out{% endblock %}
+
+{% block content %}
+  <h1>Log out.</h1>
+  <p>Are you sure you want to log out?</p>
+
+  <form method="post" action="{% url 'account_logout' %}">
+    {% csrf_token %}
+    {{ redirect_field }}
+    <button type="submit">Log out</button>
+    <a class="button secondary" href="{% url 'creator_subscriptions:profile' %}">Stay signed in</a>
+  </form>
+{% endblock %}

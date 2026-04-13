@@ -1,0 +1,17 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Access Needed{% endblock %}
+
+{% block content %}
+  <h1>Access needed.</h1>
+  <p>This post requires {{ post.get_access_tier_display }} access.</p>
+  <div class="actions">
+    {% if user.is_authenticated %}
+      <a class="button" href="{% url 'creator_subscriptions:connect_x_mock' %}">Connect mock X account</a>
+      <a class="button secondary" href="{% url 'creator_subscriptions:profile' %}">Open profile</a>
+    {% else %}
+      <a class="button" href="{% url 'account_login' %}">Log in</a>
+      <a class="button secondary" href="{% url 'creator_subscriptions:mock_x_sign_in' %}">Mock sign in with X</a>
+    {% endif %}
+  </div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Members Access Needed{% endblock %}
+
+{% block content %}
+  <h1>Members access needed.</h1>
+  <p>This account is not linked to an active X subscriber.</p>
+  <h2>Current status</h2>
+  <p><strong>X connected:</strong> {% if profile.x_user_id %}Yes{% else %}No{% endif %}</p>
+  <p><strong>X subscriber:</strong> {% if profile.is_x_subscriber %}Yes{% else %}No{% endif %}</p>
+  <p><strong>Tier:</strong> {{ profile.x_subscription_status.subscription_type|default:"None" }}</p>
+  <p class="muted">X user ID: {{ profile.x_user_id|default:"Not connected" }}</p>
+  <div class="actions">
+    <a class="button" href="{% url 'creator_subscriptions:connect_x_mock' %}">Connect mock X account</a>
+    <a class="button secondary" href="{% url 'creator_subscriptions:profile' %}">Back to profile</a>
+  </div>
+{% endblock %}

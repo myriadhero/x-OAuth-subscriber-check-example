@@ -1,0 +1,14 @@
+{% extends "creator_subscriptions/base.html" %}
+
+{% block title %}Third-Party Login Failure{% endblock %}
+
+{% block content %}
+  <h1>Third-party login failed.</h1>
+  <p>An error occurred while attempting to use the third-party account.</p>
+  <p class="muted">If X returned a payment or billing error, resolve that in the X developer account and try again.</p>
+
+  <div class="actions">
+    <a class="button" href="{% url 'socialaccount_connections' %}">Back to third-party accounts</a>
+    <a class="button secondary" href="{% url 'creator_subscriptions:profile' %}">Open profile</a>
+  </div>
+{% endblock %}
